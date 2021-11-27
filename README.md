@@ -60,10 +60,9 @@ input is the most common case and will specialize the code for it.
 For this article, I will only be measuring buffer sizes of 40, even though
 the code of course has to support arbitrary buffer sizes.
 
-| Scenario | Even aligned buffer | Odd aligned buffer |
-| -------- | ------------------- | ------------------ |
-| Baseline | 11 cycles           | 19 cycles          |
-
+| Scenario          | Even aligned buffer | Odd aligned buffer |
+| ----------------- | ------------------- | ------------------ |
+| Baseline          | 11.1 cycles         | 19.2 cycles        |
 
 Nothing much to say about a baseline, other than that the "odd aligned
 buffer" case is shockingly more expensive.
@@ -90,10 +89,10 @@ renamed to __csum_partial) but with an if statement that checks for a
 compile-time constant len paraneter of 40 (this will obviously only work in
 an inline function in a header).
 
-| Scenario    | Even aligned buffer | Odd aligned buffer |
-| ----------- | ------------------- | ------------------ |
-| Baseline    | 11 cycles           | 19 cycles          |
-| Specialized | 11 cycles           | 19 cycles          |
+| Scenario          | Even aligned buffer | Odd aligned buffer |
+| ----------------- | ------------------- | ------------------ |
+| Baseline          | 11.1 cycles         | 19.2 cycles        |
+| Specialized       | 11.1 cycles         | 19.2 cycles        |
 
 As you can see in the results table, nothing has changed yet
 
@@ -174,9 +173,9 @@ removing the special case:
 
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
-| Baseline          | 11 cycles           | 19 cycles          |
-| Specialized       | 11 cycles           | 19 cycles          |
-| Unaligned removed | 11 cycles           | 11 cycles          |
+| Baseline          | 11.1 cycles         | 19.2 cycles        |
+| Specialized       | 11.1 cycles         | 19.2 cycles        |
+| Unaligned removed | 11.1 cycles         | 11.1 cycles        |
 
 
 
@@ -218,10 +217,10 @@ also the first time we gained some performance from the aligned case:
 
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
-| Baseline          | 11 cycles           | 19 cycles          |
-| Specialized       | 11 cycles           | 19 cycles          |
-| Unaligned removed | 11 cycles           | 11 cycles          |
-| Dead Code Removed | 10 cycles           | 10 cycles          |
+| Baseline          | 11.1 cycles         | 19.2 cycles        |
+| Specialized       | 11.1 cycles         | 19.2 cycles        |
+| Unaligned removed | 11.1 cycles         | 11.1 cycles        |
+| Dead Code Removed | 9.1 cycles          | 9.1 cycles         |
 
 
 ## Side track: Critical chain analysis
@@ -323,10 +322,11 @@ For more information, Wikipedia has a page: https://en.wikipedia.org/wiki/Intel_
 
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
-| Baseline          | 11 cycles           | 19 cycles          |
-| Specialized       | 11 cycles           | 19 cycles          |
-| Unaligned removed | 11 cycles           | 11 cycles          |
-| Using ADX         | 10 cycles           | 10 cycles          |
+| Baseline          | 11.1 cycles         | 19.2 cycles        |
+| Specialized       | 11.1 cycles         | 19.2 cycles        |
+| Unaligned removed | 11.1 cycles         | 11.1 cycles        |
+| Dead Code Removed | 9.1 cycles          | 9.1 cycles         |
+| Using ADX         | 6.1 cycles          | 6.1 cycles         |
 
 Even though this codepath has one extra add (to fold the carry into the sum
 for the "adcx" side of the flow), the overall performance is a win!
@@ -363,13 +363,103 @@ as well and see how close we can get.
 		return (__wsum)result;
 	}
 
+And the data shows that we don't actually need ADX for this purpose.. we can
+get parity without ADX.
 
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
-| Baseline          | 11 cycles           | 19 cycles          |
-| Specialized       | 11 cycles           | 19 cycles          |
-| Unaligned removed | 11 cycles           | 11 cycles          |
-| Using ADX         | 10 cycles           | 10 cycles          |
-| Two Streams       | 10 cycles           | 10 cycles          |
+| Baseline          | 11.1 cycles         | 19.2 cycles        |
+| Specialized       | 11.1 cycles         | 19.2 cycles        |
+| Unaligned removed | 11.1 cycles         | 11.1 cycles        |
+| Dead Code Removed | 9.1 cycles          | 9.1 cycles         |
+| Using ADX         | 6.1 cycles          | 6.1 cycles         |
+| Two Streams       | 6.1 cycles          | 6.1 cycles         |
 
 
+# The final potential step
+
+So this was a fun poking session but my flight is starting to decent and my
+internal goal of beating Eric's code by 2x has not been achieved yet.
+
+The only thing I can think of right now to push the algorithm over the edge
+is another specialization, and that is setting the input checksum to zero.
+While this may sound like a useless thing, in reality calculating checksums
+of headers and such most likely is the only thing that is checksum'd, which
+mean a value of zero is going to be plugged in there. 
+By doing this, we can skip one add which also allows to have a more balanced
+2 halves of the tree... giving a potential of 2 cycles.
+
+The code now looks like this
+
+	__wsum csum_partial_40len_zerosum(const void *buff, int len, __wsum sum)
+	{
+		u64 temp64 = (u64)sum;
+		unsigned result;
+	
+		asm("movq 0*8(%[src]),%%rcx\n\t"
+		    "addq 1*8(%[src]),%%rcx\n\t"
+		    "adcq 2*8(%[src]),%%rcx\n\t"
+		    "adcq $0, %%rcx\n\t" 
+		    "movq 3*8(%[src]),%[res]\n\t"
+		    "addq 4*8(%[src]),%[res]\n\t"
+		    "adcq %%rcx,%[res]\n\t"
+		    "adcq $0,%[res]"
+			: [res] "=&r" (temp64)
+			: [src] "r" (buff)
+			: "memory", "rcx");
+		result = add32_with_carry(temp64 >> 32, temp64 & 0xffffffff);
+	
+		return (__wsum)result;
+	}	
+	
+
+Now this optimization exposed some funky things in the test framework,
+where gcc was all too clever by itself and managed to optimize the loop
+away until I tweaked the framework code for it not to do that.
+
+
+| Scenario          | Even aligned buffer | Odd aligned buffer |
+| ----------------- | ------------------- | ------------------ |
+| Baseline          | 11.1 cycles         | 19.2 cycles        |
+| Specialized       | 11.1 cycles         | 19.2 cycles        |
+| Unaligned removed | 11.1 cycles         | 11.1 cycles        |
+| Dead Code Removed | 9.1 cycles          | 9.1 cycles         |
+| Using ADX         | 6.1 cycles          | 6.1 cycles         |
+| Two Streams       | 6.1 cycles          | 6.1 cycles         |
+| Assume Zero Input | 4.0 cycles          | 4.0 cycles         |
+
+Either way, the final goal is realized where a more-than-2x performance
+increase has been achieved.
+
+
+
+
+# Bonus section
+
+Some of my coworkers and others who look at the intersection of low level 
+software and CPU microarchitecture realize that the CPUs Out Of Order engine
+is hiding latency in the examples and numbers above. One can debate if that
+is valid or not for this case. For now, I'm leaning towards it being valid
+since in a real world code flow, the Out of Order engine will also hide
+latencies as its primary function.
+
+But just for interest, I made a set of measurements where I put an lfence
+instruction (which effectively blocks the OOO engine) on either side of the
+call to the checksum function to measure a worst-case end-to-end latency.
+
+The data of this experiment is in the table below:
+
+Latency measurement with OOO force killed
+| Scenario          | Even aligned buffer | Odd aligned buffer |
+| ----------------- | ------------------- | ------------------ |
+| Baseline          | 19.1 cycles         | 26.9 cycles        |
+| Specialized       | 18.2 cycles         | 26.9 cycles        |
+| Unaligned removed | 18.4 cycles         | 18.8 cycles        |
+| Dead Code Removed | 14.0 cycles         | 15.2 cycles        |
+| Using ADX         | 15.8 cycles         | 17.8 cycles        |
+| Two Streams       | 16.3 cycles         | 16.5 cycles        |
+| Assume Zero Input | 14.4 cycles         | 14.1 cycles        |
+
+In playing with the code, it's clear that it is often possible to reduce these
+"worst case" latencies one or two cycles at the expense of the "with OOO"
+performance.
