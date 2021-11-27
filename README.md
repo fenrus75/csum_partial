@@ -245,8 +245,11 @@ This is also the first time we gained some performance for the even-aligned case
 At this point it's interesting to analyze the code to see what the
 fundamental floor of the performance of the code will be.
 In the diagram below, I've drawn the essential parts of the compiler generated code (including the
-"add32_with_carry") in a diagram where the arrows show the dependency graph
-of this code. The Cascade Lake CPU that Eric used can execute upto 4
+`add32_with_carry`) in a diagram where the arrows show the dependency graph
+of this code. 
+
+![Diagram of critical instructions](chain1.svg)
+The Cascade Lake CPU that Eric used can execute upto 4
 instructions each clock cycle, but as you can see in the diagram, there is a
 chain of "add with carry" instructions that each depend on the previous
 instruction to be completed. Or in other words, in reality the CPU will not
