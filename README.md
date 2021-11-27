@@ -288,7 +288,7 @@ R = (A + B) + (C + D)
 where (A + B) and (C + D) can be computed in parallel, turning a dependency
 chain of 3 cycles into a chain of 2 cycles.
 
-![Graph to show parallel adds](chain2.svg)
+![Graph to show parallel adds](chain2a.svg) ![Graph to show parallel adds](chain2.svg)
 
 Since our problem actually has 5 + 1 (the final carry) additions, we should
 be able to use this trick!
