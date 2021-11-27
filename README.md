@@ -18,7 +18,7 @@ with this writeup at https://github.com/fenrus75/csum_partial
 
 In kernel commit
 https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/core&id=d31c3c683ee668ba5d87c0730610442fd672525f
-Eric Dumazet optimized the csum_partial function for the x86-64
+Eric Dumazet optimized the `csum_partial` function for the x86-64
 architecture. In his commit message, he noted that the use of this function
 has effectively shifted from doing checksums for whole packets (which the
 hardware does nowadays) to primarily doing a checksum for the 40 byte IPv6
@@ -30,20 +30,20 @@ In this writeup, I'm going to take a deeper look at this function, and
 see if further optimizations are possible (spoiler: they are).
 
 
-## What csum_partial does
+## What `csum_partial` does
 
 The function calculates a 32 bit checksum of a block of data.  A checksum is
 basically a simple addition function, but where the outgoing carry feeds
 back into the checksum.  Because addition is a very gentle mathematical
 function where the order of operation is completely unimportant (addition is
 transitive, e.g.  A + B equals B + A), this gives a few key freedoms.  The
-most important one (and used by the current csum_partial) is that you can
+most important one (and used by the current `csum_partial`) is that you can
 calculte a 64 bit checksum and then "fold" it into a 32 bit checksum by just
 adding the upper and lower 32 bits (and then adding again the remaining
 carry from this addition).  Likewise, if one wants a 16 bit carry, you can
 "fold" the two halves of a 32 bit checkum together.
 
-There really are only two messy parts in csum_partial:
+There really are only two messy parts in `csum_partial`:
 
 * coping with the "tail" of the buffer for buffers where the size isn't a
   nice multiple of 8 or 4.
@@ -54,7 +54,7 @@ There really are only two messy parts in csum_partial:
 
 ## The optimization logistics and overall strategy
 
-For convenience and speed of development I ported Eric's csum_partial
+For convenience and speed of development I ported Eric's `csum_partial`
 function to a userspace testbench. This involved providing some the basic
 helper functions used by the function and removing a few kernel-isms
 that the kernel uses to help static analysis. Neither the functionality
@@ -96,8 +96,8 @@ case.
 		}
 	}
 
-In this first step, we still call the original csum_partial() function (now
-renamed to __csum_partial) but with an if statement that checks for a
+In this first step, we still call the original `csum_partial()` function (now
+renamed to __`csum_partial`) but with an if statement that checks for a
 compile-time constant len paraneter of 40 (this will obviously only work in
 an inline function in a header).
 
@@ -224,8 +224,10 @@ The resulting code now looks like this:
 		return (__wsum)result;
 	}
 
-As you can see, the code is starting to look much simpler now, and this is
-also the first time we gained some performance from the aligned case:
+As you can see, the code is starting to look much simpler now, small and
+simple enough to just be inlined from a header-side definition.
+
+This is also the first time we gained some performance for the even-aligned case:
 
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
@@ -302,7 +304,7 @@ dependencies between them.
 For more information, Wikipedia has a page: https://en.wikipedia.org/wiki/Intel_ADX
 
 
-## Using ADX for csum_partial:
+## Using ADX for `csum_partial`:
 
 
 	__wsum csum_partial43(const void *buff, int len, __wsum sum)
