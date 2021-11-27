@@ -328,4 +328,48 @@ For more information, Wikipedia has a page: https://en.wikipedia.org/wiki/Intel_
 | Unaligned removed | 11 cycles           | 11 cycles          |
 | Using ADX         | 10 cycles           | 10 cycles          |
 
+Even though this codepath has one extra add (to fold the carry into the sum
+for the "adcx" side of the flow), the overall performance is a win!
+
+
+## 2 streams without ADX
+
+In the ADX example, you might notice that the code doesn't actually
+interleave ADCX and ADOX, but that it depends on the out of order engine for
+this. This implies it should be possible to also do something similar
+with using straight Add-with-carry instructions. Since ADX is somewhat
+recent (not even an entire decade) it'll be useful to explore this path
+as well and see how close we can get.
+
+	__wsum csum_partial44(const void *buff, int len, __wsum sum)
+	{
+		u64 temp64 = (u64)sum;
+		unsigned result;
+
+		asm("movq 0*8(%[src]),%%rcx\n\t"
+		    "adcq 1*8(%[src]),%%rcx\n\t"
+		    "adcq 2*8(%[src]),%%rcx\n\t"
+		    "adcq  $0, %%rcx\n\t" 
+		    "xorq %%r9, %%r9\n\t"
+		    "addq 3*8(%[src]),%[res]\n\t"
+		    "adcq 4*8(%[src]),%[res]\n\t"
+		    "adcq %%rcx,%[res]\n\t"
+		    "adcq $0,%[res]"
+			: [res] "+r" (temp64)
+			: [src] "r" (buff)
+			: "memory", "rcx", "r9");
+		result = add32_with_carry(temp64 >> 32, temp64 & 0xffffffff);
+
+		return (__wsum)result;
+	}
+
+
+| Scenario          | Even aligned buffer | Odd aligned buffer |
+| ----------------- | ------------------- | ------------------ |
+| Baseline          | 11 cycles           | 19 cycles          |
+| Specialized       | 11 cycles           | 19 cycles          |
+| Unaligned removed | 11 cycles           | 11 cycles          |
+| Using ADX         | 10 cycles           | 10 cycles          |
+| Two Streams       | 10 cycles           | 10 cycles          |
+
 
