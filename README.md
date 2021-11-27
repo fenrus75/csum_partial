@@ -367,15 +367,14 @@ as well and see how close we can get.
 		u64 temp64 = (u64)sum;
 		unsigned result;
 
-		asm("xorq %%r9, %%r9\n\t"
-		    "movq 0*8(%[src]),%%rcx\n\t"
+		asm("movq 0*8(%[src]),%%rcx\n\t"
 		    "addq 1*8(%[src]),%%rcx\n\t"
 		    "adcq 2*8(%[src]),%%rcx\n\t"
 		    "addq 3*8(%[src]),%%rcx\n\t"
-		    "adcq  %%r9, %%rcx\n\t" 
-		    "adcq 4*8(%[src]),%[res]\n\t"
-		    "adcq %%rcx,%[res]\n\t"
-		    "adcq %%r9,%[res]"
+		    "adcq          $0, %%rcx\n\t" 
+		    "addq 4*8(%[src]),%[res]\n\t"
+		    "adcq       %%rcx,%[res]\n\t"
+		    "adcq          $0,%[res]"
 			: [res] "+r" (temp64)
 			: [src] "r" (buff)
 			: "memory", "rcx", "r9");
