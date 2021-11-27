@@ -1,6 +1,20 @@
-DRAFT -- WORK IN PROGRESS -- DATA IN TABLES IS NOT REAL YET
+## Intro
 
-## Introduction
+Optimizing systems for performance is fun. Loads of fun. And sometimes
+incredibly frustrating. It's also something to do on a long intercontinental
+flight to keep from watching that same movie again while being incredibly
+bored..
+
+In this post I'm going to show the steps I went through to optimize a
+specific Linux kernel function, and how I got to a set of final results.  As
+with all performance work, the path from starting point to end point isn't a
+straight line but rather a roundabout meandering path of discovery and
+experiment.
+
+The code for the framework and the various steps lives in github together
+with this writeup at https://github.com/fenrus75/csum_partial
+
+## Introduction to the problem
 
 In kernel commit
 https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/core&id=d31c3c683ee668ba5d87c0730610442fd672525f
@@ -14,8 +28,6 @@ optimization.
 
 In this writeup, I'm going to take a deeper look at this function, and 
 see if further optimizations are possible (spoiler: they are).
-
-
 
 
 ## What csum_partial does
