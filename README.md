@@ -249,6 +249,7 @@ In the diagram below, I've drawn the essential parts of the compiler generated c
 of this code. 
 
 ![Diagram of critical instructions](chain1.svg)
+
 The Cascade Lake CPU that Eric used can execute upto 4
 instructions each clock cycle, but as you can see in the diagram, there is a
 chain of "add with carry" instructions that each depend on the previous

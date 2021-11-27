@@ -5,4 +5,5 @@ csum_partial: csum_partial.c Makefile
 	
 	
 chain1.svg: graphs/chain1.dot
-	dot -Tsvg graphs/chain1.dot > chain1.svg
+	dot -Tsvg -O graphs/chain1.dot 
+	mv graphs/chain1.dot.svg chain1.svg
