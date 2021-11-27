@@ -469,7 +469,8 @@ call to the checksum function to measure a worst-case end-to-end latency.
 
 The data of this experiment is in the table below:
 
-Latency measurement with OOO force killed
+Latency measurement with OOO fenced off
+
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
 | Baseline          | 19.1 cycles         | 26.9 cycles        |
