@@ -1,4 +1,6 @@
-Introduction
+DRAFT -- WORK IN PROGRESS -- DATA IN TABLES IS NOT REAL YET
+
+## Introduction
 
 In kernel commit
 https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/core&id=d31c3c683ee668ba5d87c0730610442fd672525f
@@ -16,7 +18,7 @@ see if further optimizations are possible (spoiler: they are).
 
 
 
-What csum_partial does
+## What csum_partial does
 
 The function calculates a 32 bit checksum of a block of data.  A checksum is
 basically a simple addition function, but where the outgoing carry feeds
@@ -38,7 +40,7 @@ There really are only two messy parts in csum_partial:
 
 
 
-The optimization logistics and overall strategy
+## The optimization logistics and overall strategy
 
 For convenience and speed of development I ported Eric's csum_partial
 function to a userspace testbench. This involved providing some the basic
@@ -53,7 +55,7 @@ In terms of strategy, I'm going to focus on the statement that the 40 byte
 input is the most common case and will specialize the code for it.
 
 
-Performance baseline
+## Performance baseline
 
 For this article, I will only be measuring buffer sizes of 40, even though
 the code of course has to support arbitrary buffer sizes.
@@ -69,7 +71,7 @@ buffer" case is shockingly more expensive.
 
 
 
-First step: Specializing
+## First step: Specializing
 
 As a very first step, we're going to make the size of 40 bytes a special
 case.
@@ -96,7 +98,7 @@ an inline function in a header).
 As you can see in the results table, nothing has changed yet
 
 
-Next step: Getting rid of the "Odd alignment" handling
+## Next step: Getting rid of the "Odd alignment" handling
 
 The data shows that the handling of odd-aligned buffers is very slow. It
 also is going to hurt further specialization, since it means sometimes we
@@ -178,7 +180,7 @@ removing the special case:
 
 
 
-And now: Removing dead code
+## And now: Removing dead code
 
 Now that we only ever have to deal with 40 bytes (and not 39) we can remove
 the while loop (for sizes >= 64), as well as the code dealing with a
@@ -222,7 +224,7 @@ also the first time we gained some performance from the aligned case:
 | Dead Code Removed | 10 cycles           | 10 cycles          |
 
 
-Side track: Critical chain analysis
+## Side track: Critical chain analysis
 
 At this point it's interesting to analyze the code to see what the
 fundamental floor of the performance of the code will be.
@@ -244,7 +246,7 @@ isn't any more blood to squeeze out of this stone.
 Or is there,..
 
 
-Rethinking the problem
+## Rethinking the problem
 
 We can admire the problem of this chain all day long, or try to polish the
 code a bit more, but neither is going to give us any step in performance.
@@ -274,7 +276,7 @@ The only complication is the final carry that we need to absorb back into
 our sum; in the next few sections we'll see what limits this imposes.
 
 
-Tangent: ADX instruction set extensions
+## Tangent: ADX instruction set extensions
 
 In certain types of cryptographic code, pairs of such long "add with carry" chains
 are common, and having only one carry flag ended up being a huge performance
@@ -285,8 +287,10 @@ the overflow flag. Because these two instructions use and set a disjoint set
 of CPU flags, they can be interleaved in a code stream without having
 dependencies between them. 
 
+For more information, Wikipedia has a page: https://en.wikipedia.org/wiki/Intel_ADX
 
-Turning this into code:
+
+## Using ADX for csum_partial:
 
 
 	__wsum csum_partial43(const void *buff, int len, __wsum sum)
@@ -323,3 +327,5 @@ Turning this into code:
 | Specialized       | 11 cycles           | 19 cycles          |
 | Unaligned removed | 11 cycles           | 11 cycles          |
 | Using ADX         | 10 cycles           | 10 cycles          |
+
+
