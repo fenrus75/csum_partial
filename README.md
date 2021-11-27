@@ -235,11 +235,12 @@ chain of "add with carry" instructions that each depend on the previous
 instruction to be completed. Or in other words, in reality the CPU will not
 execute 4, but only 1 instruction each cycle. The critical chain is
 9 instructions long (not counting the mov instruction). The "add" and "adc"
-instructions have a latency of 1 clock cycle, while the "shr" instruction has a latency of TBD
-cycles. This means that any implementation that uses this chain has an lower
-bound of 10 cycles.
+instructions have a latency of 1 clock cycle, while the "shr" instruction
+with an immediate also has a latency of 1 cycle cycles. This means that any implementation 
+that uses this chain has an lower bound of 9 cycles.
 
-Since our measured performance was TBD cycles, it means that there really
+Since our measured performance was 9.1 cycles, which includes the various
+setup and loop overheads... it means that there really
 isn't any more blood to squeeze out of this stone.
 
 Or is there,..
@@ -251,7 +252,7 @@ We can admire the problem of this chain all day long, or try to polish the
 code a bit more, but neither is going to give us any step in performance.
 
 Having reached a dead end, it's time to take a step back. The reason we're
-at TBD cycles is that we have one long chain. To break through this barrier
+at 9 cycles is that we have one long chain. To break through this barrier
 we therefore need to find a way to split the chain in seperate pieces that
 can execute in parallel.
 
@@ -280,7 +281,7 @@ our sum; in the next few sections we'll see what limits this imposes.
 In certain types of cryptographic code, pairs of such long "add with carry" chains
 are common, and having only one carry flag ended up being a huge performance
 limiter. Because of this, Intel added 2 instructions (together called ADX)
-to the TBD generations of CPUs in [YEAR TBD]. One instruction (ADCX) will use and
+to the Broadwell generations of CPUs in 2014. One instruction (ADCX) will use and
 set ONLY the carry flag, while the other instruction wiil use and set ONLY
 the overflow flag. Because these two instructions use and set a disjoint set
 of CPU flags, they can be interleaved in a code stream without having
