@@ -384,7 +384,7 @@ as well and see how close we can get.
 	}
 
 And the data shows that we don't actually need ADX for this purpose.. we can
-get parity without ADX.
+get the same performance using 40 year old instructions.
 
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
