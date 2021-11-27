@@ -60,8 +60,8 @@ helper functions used by the function and removing a few kernel-isms
 that the kernel uses to help static analysis. Neither the functionality
 nor the performance of the function is impacted by this port.
 
-I also added the obvious glue logic for measuring and reporting cycles of a large number
-of runs,
+I also added the obvious glue logic for measuring and reporting cycle count
+averages of a large number of loops of the functions.
 
 In terms of strategy, I'm going to focus on the statement that the 40 byte
 input is the most common case and will specialize the code for it.
@@ -189,6 +189,8 @@ removing the special case:
 | Specialized       | 11.1 cycles         | 19.2 cycles        |
 | Unaligned removed | 11.1 cycles         | 11.1 cycles        |
 
+Well, the data speaks for itself and shows that the special casing of the
+odd-aligned buffer is completely pointless and only damaging performance.
 
 
 ## And now: Removing dead code
@@ -198,10 +200,11 @@ the while loop (for sizes >= 64), as well as the code dealing with a
 remainder of 16 and remainders 7 or below. The compiler would have done this
 as well, so this by itself is not going to be any win. However, we can now
 fold the one extra "adcq" statement to deal with the 8 remaining case into
-the code that deals with the first 32, effectively turning the code from 32
-+ 8 into just doing 40. This will save one key operation since after each
+the code that deals with the first 32, effectively turning the code from 
+32 + 8 bytes into just doing 40 bytes. This will save one key operation since after each
 block the remaining carry has to be folded back into the count, and by doing
-this optimization we go from 2 blocks of 32 + 8 to 1 block of 40.
+this optimization we go from 2 blocks of 32 + 8, and thus two folding
+operations, to 1 block of 40 with one folding operation.
 
 The resulting code now looks like this:
 
@@ -225,7 +228,7 @@ The resulting code now looks like this:
 	}
 
 As you can see, the code is starting to look much simpler now, small and
-simple enough to just be inlined from a header-side definition.
+simple enough to just be an inline function from a header definition.
 
 This is also the first time we gained some performance for the even-aligned case:
 
