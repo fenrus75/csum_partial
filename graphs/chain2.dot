@@ -1,0 +1,13 @@
+digraph G {
+	node [shape=record];
+	start -> "(A + B)";
+	start -> "(C + D)";
+	"(A + B)" -> "+";
+	"(C + D)" -> "+";
+
+	"+" -> end;
+
+	start [shape=Mdiamond];
+	end [shape=Msquare];
+}
+

@@ -255,9 +255,8 @@ instructions each clock cycle, but as you can see in the diagram, there is a
 chain of "add with carry" instructions that each depend on the previous
 instruction to be completed. Or in other words, in reality the CPU will not
 execute 4, but only 1 instruction each cycle. The critical chain is
-9 instructions long (not counting the mov instruction). The "add" and "adc"
-instructions have a latency of 1 clock cycle, while the "shr" instruction
-with an immediate also has a latency of 1 cycle cycles. This means that any implementation 
+9 instructions long (not counting the mov instruction). The "add", "adc" and
+"shr" instructions all have a latency of 1 clock cycle. This means that any implementation 
 that uses this chain has an lower bound of 9 cycles.
 
 Since our measured performance was 9.1 cycles, which includes the various
@@ -289,7 +288,7 @@ R = (A + B) + (C + D)
 where (A + B) and (C + D) can be computed in parallel, turning a dependency
 chain of 3 cycles into a chain of 2 cycles.
 
-[TBD 2 pictures of graphs that show this]
+![Graph to show parallel adds](chain2.svg)
 
 Since our problem actually has 5 + 1 (the final carry) additions, we should
 be able to use this trick!
