@@ -460,8 +460,8 @@ Some of my coworkers and others who look at the intersection of low level
 software and CPU microarchitecture realize that the CPUs Out Of Order engine
 is hiding latency in the examples and numbers above. One can debate if that
 is valid or not for this case. For now, I'm leaning towards it being valid
-since in a real world code flow, the Out of Order engine will also hide
-latencies as its primary function.
+since in a real world code flow, the Out of Order engine will always
+hide latencies -- that is its primary function.
 
 But just for interest, I made a set of measurements where I put an lfence
 instruction (which effectively blocks the OOO engine) on either side of the
