@@ -12,12 +12,11 @@ straight line but rather a roundabout meandering path of discovery and
 experiment.
 
 The code for the framework and the various steps lives in github together
-with this writeup at https://github.com/fenrus75/csum_partial
+with this writeup on [github](https://github.com/fenrus75/csum_partial)
 
 ## Introduction to the problem
 
-In kernel commit
-https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/core&id=d31c3c683ee668ba5d87c0730610442fd672525f
+In a [recent kernel commit](https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/core&id=d31c3c683ee668ba5d87c0730610442fd672525f),
 Eric Dumazet optimized the x86-64 architecture version of the `csum_partial`
 function.
 In his commit message, Eric noted that the use of this function has
