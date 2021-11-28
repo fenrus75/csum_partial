@@ -234,7 +234,7 @@ __wsum __csum_partial(const void *buff, int len, __wsum sum)
 }
 
 
-__wsum csum_partial40(const void *buff, int len, __wsum sum)
+__wsum csum_partial40_no_odd(const void *buff, int len, __wsum sum)
 {
 	u64 temp64 = (u64)sum;
 	unsigned result;
@@ -300,7 +300,7 @@ __wsum csum_partial40(const void *buff, int len, __wsum sum)
 }
 
 
-__wsum csum_partial41(const void *buff, int len, __wsum sum)
+__wsum csum_partial40_dead_code(const void *buff, int len, __wsum sum)
 {
 	u64 temp64 = (u64)sum;
 	unsigned result;
@@ -319,28 +319,7 @@ __wsum csum_partial41(const void *buff, int len, __wsum sum)
 	return (__wsum)result;
 }
 
-__wsum csum_partial42(const void *buff, int len, __wsum sum)
-{
-	u64 temp64 = (u64)sum;
-	unsigned result;
-
-	asm("xorq          %%r9, %%r9  \n\t"
-	    "movq   0*8(%[src]), %%rcx \n\t"
-	    "adcx   1*8(%[src]), %%rcx \n\t"
-	    "adcx   2*8(%[src]), %%rcx \n\t"
-	    "adcx          %%r9, %%rcx \n\t"
-	    "adox   3*8(%[src]), %[res]\n\t"
-	    "adox   4*8(%[src]), %[res]\n\t"
-	    "adox         %%rcx, %[res]\n\t"
-	    "adox          %%r9, %[res]"
-		: [res] "+d" (temp64)
-		: [src] "r" (buff)
-		: "memory", "rcx", "r9");
-	result = add32_with_carry(temp64 >> 32, temp64 & 0xffffffff);
-
-	return (__wsum)result;
-}
-__wsum csum_partial43(const void *buff, int len, __wsum sum)
+__wsum csum_partial40_ACX(const void *buff, int len, __wsum sum)
 {
 	u64 temp64 = (u64)sum;
 	unsigned result;
@@ -366,29 +345,8 @@ __wsum csum_partial43(const void *buff, int len, __wsum sum)
 
 	return (__wsum)result;
 }
-__wsum csum_partial44(const void *buff, int len, __wsum sum)
-{
-	u64 temp64 = (u64)sum;
-	unsigned result;
 
-	asm("movq 0*8(%[src]),%%rcx\n\t"
-	    "addq 1*8(%[src]),%%rcx\n\t"
-	    "adcq 2*8(%[src]),%%rcx\n\t"
-	    "adcq  $0, %%rcx\n\t" 
-	    "xorq %%r9, %%r9\n\t"
-	    "addq 3*8(%[src]),%[res]\n\t"
-	    "adcq 4*8(%[src]),%[res]\n\t"
-	    "adcq %%rcx,%[res]\n\t"
-	    "adcq $0,%[res]"
-		: [res] "+r" (temp64)
-		: [src] "r" (buff)
-		: "memory", "rcx", "r9");
-	result = add32_with_carry(temp64 >> 32, temp64 & 0xffffffff);
-
-	return (__wsum)result;
-}
-
-__wsum csum_partial45(const void *buff, int len, __wsum sum)
+__wsum csum_partial40_2_streams(const void *buff, int len, __wsum sum)
 {
 	u64 temp64 = (u64)sum;
 	unsigned result;
@@ -410,7 +368,7 @@ __wsum csum_partial45(const void *buff, int len, __wsum sum)
 	return (__wsum)result;
 }
 
-__wsum csum_partial46(const void *buff, int len, __wsum sum)
+__wsum csum_partial40_zero_sum(const void *buff, int len, __wsum sum)
 {
 	u64 temp64 = (u64)sum;
 	unsigned result;
@@ -431,7 +389,7 @@ __wsum csum_partial46(const void *buff, int len, __wsum sum)
 	return (__wsum)result;
 }
 
-__wsum csum_partial47(const void *buff, int len, __wsum sum)
+__wsum csum_partial40_32bit(const void *buff, int len, __wsum sum)
 {
 	__wsum temp64 = sum;
 	unsigned result;
@@ -465,44 +423,10 @@ __wsum csum_partial47(const void *buff, int len, __wsum sum)
 	return (__wsum)result;
 }
 
-__wsum csum_partial48_zerosum(const void *buff, int len, __wsum sum)
-{
-	__wsum temp64 = sum;
-	unsigned result;
-
-	asm("movl 0*4(%[src]), %%r9d\n\t"
-	    "movl 1*4(%[src]), %%r11d\n\t"
-	    "movl 2*4(%[src]), %%ecx\n\t"
-	    
-	    "addl 3*4(%[src]), %%r9d\n\t"
-	    "adcl 4*4(%[src]), %%r9d\n\t"
-	    "adcl       $0, %%r9d\n\t"
-	    
-	    "addl 5*4(%[src]), %%r11d\n\t"
-	    "adcl 6*4(%[src]), %%r11d\n\t"
-	    "adcl	$0, %%r11d\n\t"
-	    
-	    "addl 7*4(%[src]), %%ecx\n\t"
-	    "adcl 8*4(%[src]), %%ecx\n\t"
-	    "adcl	$0, %%ecx\n\t"
-	    
-	    "movl 9*4(%[src]), %%edx\n\t"
-	    "adcl       %%r9d, %%edx\n\t"    
-	    "adcl      %%r11d, %%edx\n\t"    
-	    "adcl      %%ecx, %%edx\n\t"    
-	    "adcl      $0,  %%edx\n\t"	
-	        : [res] "=&d" (temp64)
-		: [src] "r" (buff)
-		: "memory", "rcx", "r9", "r11");
-	result = temp64;
-
-	return (__wsum)result;
-}
-
-static inline __wsum csum_partial2(const void *buff, int len, __wsum sum)
+static inline __wsum csum_partial_no_odd(const void *buff, int len, __wsum sum)
 {
 	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial40(buff, len, sum);
+		return csum_partial40_no_odd(buff, len, sum);
 	} else {
 		return __csum_partial(buff, len, sum);
 	}
@@ -517,68 +441,43 @@ static inline __wsum csum_specialized(const void *buff, int len, __wsum sum)
 	}
 }
 
-static inline __wsum csum_partial3(const void *buff, int len, __wsum sum)
+static inline __wsum csum_partial_dead_code(const void *buff, int len, __wsum sum)
 {
 	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial41(buff, len, sum);
+		return csum_partial40_dead_code(buff, len, sum);
 	} else {
 		return __csum_partial(buff, len, sum);
 	}
 }
-static inline __wsum csum_partial4(const void *buff, int len, __wsum sum)
+static inline __wsum csum_partial_ACX(const void *buff, int len, __wsum sum)
 {
 	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial42(buff, len, sum);
+		return csum_partial40_ACX(buff, len, sum);
 	} else {
 		return __csum_partial(buff, len, sum);
 	}
 }
-static inline __wsum csum_partial5(const void *buff, int len, __wsum sum)
+static inline __wsum csum_partial_2_streams(const void *buff, int len, __wsum sum)
 {
 	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial43(buff, len, sum);
+		return csum_partial40_2_streams(buff, len, sum);
 	} else {
 		return __csum_partial(buff, len, sum);
 	}
 }
-static inline __wsum csum_partial6(const void *buff, int len, __wsum sum)
+static inline __wsum csum_partial_32bit(const void *buff, int len, __wsum sum)
 {
 	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial44(buff, len, sum);
-	} else {
-		return __csum_partial(buff, len, sum);
-	}
-}
-
-static inline __wsum csum_partial7(const void *buff, int len, __wsum sum)
-{
-	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial45(buff, len, sum);
-	} else {
-		return __csum_partial(buff, len, sum);
-	}
-}
-static inline __wsum csum_partial8(const void *buff, int len, __wsum sum)
-{
-	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial46(buff, len, sum);
-	} else {
-		return __csum_partial(buff, len, sum);
-	}
-}
-static inline __wsum csum_partial9(const void *buff, int len, __wsum sum)
-{
-	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial47(buff, len, sum);
+		return csum_partial40_32bit(buff, len, sum);
 	} else {
 		return __csum_partial(buff, len, sum);
 	}
 }
 
-static inline __wsum csum_partial10(const void *buff, int len, __wsum sum)
+static inline __wsum csum_partial_zero_sum(const void *buff, int len, __wsum sum)
 {
 	if (__builtin_constant_p(len) && len == 40)  {
-		return csum_partial48_zerosum(buff, len, sum);
+		return csum_partial40_zero_sum(buff, len, sum);
 	} else {
 		return __csum_partial(buff, len, sum);
 	}
@@ -714,20 +613,15 @@ int main(int argc, char **argv)
 	while (1) {
 	MEASURE(0, nulltest, "NULL test");
 
-	MEASURE(2, csum_partial, "Upcoming linux kernel version");
+	MEASURE(2,  csum_partial, "Upcoming linux kernel version");
+	MEASURE(4,  csum_specialized, "Specialized to size 40");
+	MEASURE(22, csum_partial_no_odd, "Odd-alignment handling removed");
+	MEASURE(24, csum_partial_dead_code, "Dead code elimination           ");
+	MEASURE(28, csum_partial_ACX, "ADX interleaved ");
+	MEASURE(32, csum_partial_2_streams, "Work in progress non-ADX interleave ");
+	MEASURE(34, csum_partial_32bit, "32 bit train ");
+	MEASURE(36, csum_partial_zero_sum, "Assume zero input sum");
 
-
-	MEASURE(4, csum_specialized, "Specialized to size 40");
-
-	MEASURE(22, csum_partial2, "Linux kernel minus alignment");
-	MEASURE(24, csum_partial3, "Base minimization           ");
-	MEASURE(26, csum_partial4, "ADX based interleave        ");
-	MEASURE(28, csum_partial5, "Work in progress ADX interleave ");
-	MEASURE(30, csum_partial6, "Work in progress non-ADX interleave ");
-	MEASURE(32, csum_partial7, "Work in progress non-ADX interleave ");
-	MEASURE(34, csum_partial8, "Assume zero ");
-	MEASURE(36, csum_partial9, "32 bit train ");
-	MEASURE(38, csum_partial9, "32 bit train-- zero sum ");
 
 	report();
 	}

@@ -117,7 +117,7 @@ process the buffer as 40 bytes, and sometimes as 1 + 39 + 1.
 So lets see how bad the performance really is in the unaligned case by just
 removing the special case:
 
-	__wsum csum_partial40(const void *buff, int len, __wsum sum)
+	__wsum csum_partial40_no_odd(const void *buff, int len, __wsum sum)
 	{
 		u64 temp64 = (u64)sum;
 		unsigned result;
@@ -208,7 +208,7 @@ operations, to 1 block of 40 with one folding operation.
 
 The resulting code now looks like this:
 
-	__wsum csum_partial41(const void *buff, int len, __wsum sum)
+	__wsum csum_partial40_dead_code(const void *buff, int len, __wsum sum)
 	{
 		u64 temp64 = (u64)sum;
 		unsigned result;
@@ -313,7 +313,7 @@ For more information, Wikipedia has a page: https://en.wikipedia.org/wiki/Intel_
 ## Using ADX for `csum_partial`:
 
 
-	__wsum csum_partial43(const void *buff, int len, __wsum sum)
+	__wsum csum_partial40_ACX(const void *buff, int len, __wsum sum)
 	{
 		u64 temp64 = (u64)sum;
 		unsigned result;
@@ -362,7 +362,7 @@ with using straight Add-with-carry instructions. Since ADX is somewhat
 recent (not even an entire decade) it'll be useful to explore this path
 as well and see how close we can get.
 
-	__wsum csum_partial44(const void *buff, int len, __wsum sum)
+	__wsum csum_partial40_2_streams(const void *buff, int len, __wsum sum)
 	{
 		u64 temp64 = (u64)sum;
 		unsigned result;
@@ -424,7 +424,7 @@ CPU capability.
 
 The code will then look like this:
 
-	__wsum csum_partial47(const void *buff, int len, __wsum sum)
+	__wsum csum_partial40_32bit(const void *buff, int len, __wsum sum)
 	{
 		__wsum temp64 = sum;
 		unsigned result;
@@ -491,7 +491,7 @@ By doing this, we can skip one add which also allows to have a more balanced
 
 The code now looks like this
 
-	__wsum csum_partial_40len_zerosum(const void *buff, int len, __wsum sum)
+	__wsum csum_partial_40_zero_sum(const void *buff, int len, __wsum sum)
 	{
 		u64 temp64 = (u64)sum;
 		unsigned result;
