@@ -471,31 +471,30 @@ __wsum csum_partial48_zerosum(const void *buff, int len, __wsum sum)
 	__wsum temp64 = sum;
 	unsigned result;
 
-	asm("xorq       %%rcx, %%rcx  \n\t"
-	    "movl 0*4(%[src]), %%r9d\n\t"
+	asm("movl 0*4(%[src]), %%r9d\n\t"
 	    "movl 1*4(%[src]), %%r11d\n\t"
-	    "movl 2*4(%[src]), %%r10d\n\t"
+	    "movl 2*4(%[src]), %%ecx\n\t"
 	    
 	    "addl 3*4(%[src]), %%r9d\n\t"
 	    "adcl 4*4(%[src]), %%r9d\n\t"
-	    "adcl       %%ecx, %%r9d\n\t"
+	    "adcl       $0, %%r9d\n\t"
 	    
 	    "addl 5*4(%[src]), %%r11d\n\t"
 	    "adcl 6*4(%[src]), %%r11d\n\t"
-	    "adcl	%%ecx, %%r11d\n\t"
+	    "adcl	$0, %%r11d\n\t"
 	    
-	    "addl 7*4(%[src]), %%r10d\n\t"
-	    "adcl 8*4(%[src]), %%r10d\n\t"
-	    "adcl	%%ecx, %%r10d\n\t"
+	    "addl 7*4(%[src]), %%ecx\n\t"
+	    "adcl 8*4(%[src]), %%ecx\n\t"
+	    "adcl	$0, %%ecx\n\t"
 	    
 	    "movl 9*4(%[src]), %%edx\n\t"
 	    "adcl       %%r9d, %%edx\n\t"    
 	    "adcl      %%r11d, %%edx\n\t"    
-	    "adcl      %%r10d, %%edx\n\t"    
-	    "adcl      %%ecx,  %%edx\n\t"	
+	    "adcl      %%ecx, %%edx\n\t"    
+	    "adcl      $0,  %%edx\n\t"	
 	        : [res] "=&d" (temp64)
 		: [src] "r" (buff)
-		: "memory", "rcx", "r9", "r11", "r10");
+		: "memory", "rcx", "r9", "r11");
 	result = temp64;
 
 	return (__wsum)result;
