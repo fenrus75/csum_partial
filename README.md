@@ -526,6 +526,7 @@ away until I tweaked the framework code for it not to do that.
 | Dead Code Removed | 9.1 cycles          | 9.1 cycles         |
 | Using ADX         | 6.1 cycles          | 6.1 cycles         |
 | Two Streams       | 6.1 cycles          | 6.1 cycles         |
+| 32 bit only       | 5.7 cycles          | 5.8 cycles         |
 | Assume Zero Input | 4.0 cycles          | 4.0 cycles         |
 
 Either way, the final goal is realized where a more-than-2x performance
