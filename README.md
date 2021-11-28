@@ -417,10 +417,10 @@ A quick guess would be that those 5 extra additions -- when done at 2 per
 cycle -- would be a 2.5 cycle cost. So on the back of the napkin, there is a
 half cycle to win by just doing all operations at 32 bit.
 
-In order to make this perform, we'll need to use 3 instead of 2 parallel
+In order to make this perform, we'll need to use 4 instead of 2 parallel
 streams of addition, which is practical once you have 10 items, With modern
-CPUs being able to do 4 additions per cycle, this still should not max out
-the CPU capability.
+CPUs being able to do 4 additions per cycle, this finally reaching the full 
+CPU capability.
 
 The code will then look like this:
 
