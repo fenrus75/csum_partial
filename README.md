@@ -396,7 +396,87 @@ get the same performance using 40 year old instructions.
 | Two Streams       | 6.1 cycles          | 6.1 cycles         |
 
 
-# The final potential step
+
+## Back to the drawing board
+
+Even with this 2 way interleaving, we're not yet at a 2x improvement over
+the original code that is slated for the 5.17 kernel. So it's time to go
+back to our virtual whiteboard that still has the original dependency chain
+diagram on it. 
+
+So far, we've focused on the first half of this dependency chain, and
+turning it into 2 streams of parallel adds. But there is also a second part!
+The second part does the `add32_with_carry` operation, which is a `shr` and
+two `adc` instructions that are each dependent on their previous instruction, 
+so these are good for a 3 cycle cost.
+
+In general, doing 64 bit math and folding the result into 32 bit at the end
+should be a win, but at size 40? If we were to downgrade to only 32 bit
+math, we can save those 3 cycles, but have to do 10 instead of 5 additions.
+A quick guess would be that those 5 extra additions -- when done at 2 per
+cycle -- would be a 2.5 cycle cost. So on the back of the napkin, there is a
+half cycle to win by just doing all operations at 32 bit.
+
+In order to make this perform, we'll need to use 3 instead of 2 parallel
+streams of addition, which is practical once you have 10 items, With modern
+CPUs being able to do 4 additions per cycle, this still should not max out
+the CPU capability.
+
+The code will then look like this:
+
+	__wsum csum_partial47(const void *buff, int len, __wsum sum)
+	{
+		__wsum temp64 = sum;
+		unsigned result;
+
+		asm("xorq       %%rcx, %%rcx  \n\t"
+		    "movl 0*4(%[src]), %%r9d\n\t"
+		    "movl 1*4(%[src]), %%r11d\n\t"
+		    "movl 2*4(%[src]), %%r10d\n\t"
+	    
+		    "addl 4*4(%[src]), %%r9d\n\t"
+		    "adcl 5*4(%[src]), %%r9d\n\t"
+		    "adcl       %%ecx, %%r9d\n\t"
+	    
+		    "addl 6*4(%[src]), %%r11d\n\t"
+		    "adcl 7*4(%[src]), %%r11d\n\t"
+		    "adcl	%%ecx, %%r11d\n\t"
+	    
+		    "addl 8*4(%[src]), %%r10d\n\t"
+		    "adcl 3*4(%[src]), %%r10d\n\t"
+		    "adcl	%%ecx, %%r10d\n\t"
+	    
+		    "addl 9*4(%[src]), %%edx\n\t"
+		    "adcl       %%r9d, %%edx\n\t"    
+		    "adcl      %%r11d, %%edx\n\t"    
+		    "adcl      %%r10d, %%edx\n\t"    
+		    "adcl      %%ecx,  %%edx\n\t"	
+		        : [res] "+d" (temp64)
+			: [src] "r" (buff)
+			: "memory", "rcx", "r9", "r11", "r10");
+		result = temp64;
+
+		return (__wsum)result;
+	}
+
+
+The result is unfortunately slightly shy of the half cycle win we were
+hoping for, but a win nevertheless:
+
+
+| Scenario          | Even aligned buffer | Odd aligned buffer |
+| ----------------- | ------------------- | ------------------ |
+| Baseline          | 11.1 cycles         | 19.2 cycles        |
+| Specialized       | 11.1 cycles         | 19.2 cycles        |
+| Unaligned removed | 11.1 cycles         | 11.1 cycles        |
+| Dead Code Removed | 9.1 cycles          | 9.1 cycles         |
+| Using ADX         | 6.1 cycles          | 6.1 cycles         |
+| Two Streams       | 6.1 cycles          | 6.1 cycles         |
+| 32 bit only       | 5.7 cycles          | 5.8 cycles         |
+
+
+
+## The final potential step
 
 So this was a fun poking session but my flight is starting to decent and my
 internal goal of beating Eric's code by 2x has not been achieved yet.
@@ -456,7 +536,7 @@ increase has been achieved.
 
 # Bonus section
 
-Some of my coworkers and others who look at the intersection of low level 
+Some of my coworkers at Intel Corporation and others who look at the intersection of low level 
 software and CPU microarchitecture realize that the CPUs Out Of Order engine
 is hiding latency in the examples and numbers above. One can debate if that
 is valid or not for this case. For now, I'm leaning towards it being valid
