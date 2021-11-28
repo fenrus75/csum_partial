@@ -1,6 +1,6 @@
 ## Intro
 
-Optimizing systems for performance is fun. Loads of fun. And sometimes
+Optimizing software for performance is fun. Loads of fun. And sometimes
 incredibly frustrating. It's also something to do on a long intercontinental
 flight to keep from watching that same movie again while being incredibly
 bored..
@@ -18,12 +18,13 @@ with this writeup at https://github.com/fenrus75/csum_partial
 
 In kernel commit
 https://git.kernel.org/pub/scm/linux/kernel/git/tip/tip.git/commit/?h=x86/core&id=d31c3c683ee668ba5d87c0730610442fd672525f
-Eric Dumazet optimized the `csum_partial` function for the x86-64
-architecture. In his commit message, he noted that the use of this function
-has effectively shifted from doing checksums for whole packets (which the
-hardware does nowadays) to primarily doing a checksum for the 40 byte IPv6
-header. And he then provides an optimization for this function, which shows
-that the CPU usage of this function is significant and drops with his
+Eric Dumazet optimized the x86-64 architecture version of the `csum_partial`
+function.
+In his commit message, Eric noted that the use of this function has
+effectively shifted from doing checksums for whole packets (which the
+hardware checksums nowadays) to primarily doing a checksum for the 40 byte IPv6
+header.  And he then provides an optimization for this function, which shows
+that the CPU usage of this function was significant and drops a lot with his
 optimization.
 
 In this writeup, I'm going to take a deeper look at this function, and 
@@ -70,7 +71,7 @@ input is the most common case and will specialize the code for it.
 ## Performance baseline
 
 For this article, I will only be measuring buffer sizes of 40, even though
-the code of course has to support arbitrary buffer sizes.
+the code of course has to still work correctly for arbitrary buffer sizes.
 
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
@@ -106,14 +107,14 @@ an inline function in a header).
 | Baseline          | 11.1 cycles         | 19.2 cycles        |
 | Specialized       | 11.1 cycles         | 19.2 cycles        |
 
-As you can see in the results table, nothing has changed yet
+As you can see in the results table, nothing has improved yet.
 
 
 ## Next step: Getting rid of the "Odd alignment" handling
 
 The data shows that the handling of odd-aligned buffers is very slow. It
 also is going to hurt further specialization, since it means sometimes we
-process the buffer as 40 bytes, and sometimes as 1 + 39 + 1.
+process the buffer as 40 bytes, and sometimes as 1 + 38 + 1.
 So lets see how bad the performance really is in the unaligned case by just
 removing the special case:
 
@@ -195,16 +196,16 @@ odd-aligned buffer is completely pointless and only damaging performance.
 
 ## And now: Removing dead code
 
-Now that we only ever have to deal with 40 bytes (and not 39) we can remove
+Now that we only ever have to deal with 40 bytes (and not 38 or 39) we can remove
 the while loop (for sizes >= 64), as well as the code dealing with a
-remainder of 16 and remainders 7 or below. The compiler would have done this
+remainder of 16 and remainders of 7 or less. The compiler would have done this
 as well, so this by itself is not going to be any win. However, we can now
-fold the one extra "adcq" statement to deal with the 8 remaining case into
+fold the one extra "adcq" statement to deal with the "8 bytes" remaining case into
 the code that deals with the first 32, effectively turning the code from 
 32 + 8 bytes into just doing 40 bytes. This will save one key operation since after each
-block the remaining carry has to be folded back into the count, and by doing
-this optimization we go from 2 blocks of 32 + 8, and thus two folding
-operations, to 1 block of 40 with one folding operation.
+block the remaining carry has to be folded back into the sum, and by doing
+this optimization we go from 2 blocks of 32 + 8 -- and thus two folding
+operations -- to 1 block of 40 with only one folding operation.
 
 The resulting code now looks like this:
 
@@ -310,7 +311,11 @@ dependencies between them.
 For more information, Wikipedia has a page: https://en.wikipedia.org/wiki/Intel_ADX
 
 
-## Using ADX for `csum_partial`:
+## Using ADX for `csum_partial`
+
+We can split our chain of adds into two separate strings that each can be
+computed in parallel and that are added together in the end. 
+The code for this looks like this:
 
 
 	__wsum csum_partial40_ACX(const void *buff, int len, __wsum sum)
@@ -357,10 +362,12 @@ for the "adcx" side of the flow), the overall performance is a win!
 
 In the ADX example, you might notice that the code doesn't actually
 interleave ADCX and ADOX, but that it depends on the out of order engine for
-this. This implies it should be possible to also do something similar
-with using straight Add-with-carry instructions. Since ADX is somewhat
-recent (not even an entire decade) it'll be useful to explore this path
+the parallel execution. This implies it should be possible to also do something similar
+with using straight Add-with-carry `adc` instructions. Since ADX is somewhat
+recent (not even an entire decade old) it'll be useful to explore this path
 as well and see how close we can get.
+
+The code ends up looking like this:
 
 	__wsum csum_partial40_2_streams(const void *buff, int len, __wsum sum)
 	{
@@ -384,7 +391,7 @@ as well and see how close we can get.
 	}
 
 And the data shows that we don't actually need ADX for this purpose.. we can
-get the same performance using 40 year old instructions.
+get the same performance using obiquous 40 year old instructions.
 
 | Scenario          | Even aligned buffer | Odd aligned buffer |
 | ----------------- | ------------------- | ------------------ |
@@ -400,7 +407,7 @@ get the same performance using 40 year old instructions.
 ## Back to the drawing board
 
 Even with this 2 way interleaving, we're not yet at a 2x improvement over
-the original code that is slated for the 5.17 kernel. So it's time to go
+Eric's original code that is slated for the 5.17 kernel. So it's time to go
 back to our virtual whiteboard that still has the original dependency chain
 diagram on it. 
 
@@ -410,14 +417,14 @@ The second part does the `add32_with_carry` operation, which is a `shr` and
 two `adc` instructions that are each dependent on their previous instruction, 
 so these are good for a 3 cycle cost.
 
-In general, doing 64 bit math and folding the result into 32 bit at the end
-should be a win, but at size 40? If we were to downgrade to only 32 bit
-math, we can save those 3 cycles, but have to do 10 instead of 5 additions.
+In general, doing 64 bit math and folding the result into 32 bits at the end
+should be a win, but at a size of 40 bytes? If we were to downgrade to only 32 bit
+math, we can save those 3 cycles for the folding, but have to do 10 instead of 5 additions.
 A quick guess would be that those 5 extra additions -- when done at 2 per
 cycle -- would be a 2.5 cycle cost. So on the back of the napkin, there is a
-half cycle to win by just doing all operations at 32 bit.
+potential half cycle win by just doing all operations at 32 bit granularity.
 
-In order to make this perform, we'll need to use 4 instead of 2 parallel
+In order to make this perform well, we'll need to use 4 instead of 2 parallel
 streams of addition, which is practical once you have 10 items, With modern
 CPUs being able to do 4 additions per cycle, this finally reaching the full 
 CPU capability.
@@ -540,8 +547,8 @@ is valid or not for this case. For now, I'm leaning towards it being valid
 since in a real world code flow, the Out of Order engine will always
 hide latencies -- that is its primary function.
 
-But just for interest, I made a set of measurements where I put an lfence
-instruction (which effectively blocks the OOO engine) on either side of the
+But just for interest, I made a set of measurements where I put an `lfence`
+instruction (which effectively fences the OOO engine) on either side of the
 call to the checksum function to measure a worst-case end-to-end latency.
 
 The data of this experiment is in the table below:
