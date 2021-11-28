@@ -434,16 +434,16 @@ The code will then look like this:
 		    "movl 1*4(%[src]), %%r11d\n\t"
 		    "movl 2*4(%[src]), %%r10d\n\t"
 	    
-		    "addl 4*4(%[src]), %%r9d\n\t"
-		    "adcl 5*4(%[src]), %%r9d\n\t"
+		    "addl 3*4(%[src]), %%r9d\n\t"
+		    "adcl 4*4(%[src]), %%r9d\n\t"
 		    "adcl       %%ecx, %%r9d\n\t"
 	    
-		    "addl 6*4(%[src]), %%r11d\n\t"
-		    "adcl 7*4(%[src]), %%r11d\n\t"
+		    "addl 5*4(%[src]), %%r11d\n\t"
+		    "adcl 6*4(%[src]), %%r11d\n\t"
 		    "adcl	%%ecx, %%r11d\n\t"
 	    
-		    "addl 8*4(%[src]), %%r10d\n\t"
-		    "adcl 3*4(%[src]), %%r10d\n\t"
+		    "addl 7*4(%[src]), %%r10d\n\t"
+		    "adcl 8*4(%[src]), %%r10d\n\t"
 		    "adcl	%%ecx, %%r10d\n\t"
 	    
 		    "addl 9*4(%[src]), %%edx\n\t"
